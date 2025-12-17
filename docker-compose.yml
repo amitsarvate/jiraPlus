@@ -6,6 +6,7 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
+      - node_modules:/app/node_modules
     command: ["npm", "run", "dev:api"]
     env_file:
       - .env
@@ -35,3 +36,4 @@ services:
 
 volumes:
   pgdata:
+  node_modules:

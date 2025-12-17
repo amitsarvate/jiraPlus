@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "env": {
+        "ROOT": "/Users/amitsarvate/Documents/Projects/JiraPlus"
+      }
+    },
+    "gitmcp": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://gitmcp.io/amitsarvate/jiraPlus"]
+    }
+  }
+}
