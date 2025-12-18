@@ -10,7 +10,7 @@ Status: unchecked = not started, [ ]/[/] can be updated as we work. Use these as
 - [x] M0-05: DB layer setup (Prisma/Drizzle) and first migration (type: feature, label: backend-db)
 - [x] M0-06: CI workflow for lint + typecheck + minimal test (type: chore, label: ci)
 
-## M1: Jira connect flow + staging deploy
+## M1: Jira connect flow + staging deploy (staging deferred)
 - [x] M1-01: Register Jira Cloud app and document client ID/secret/redirect (type: chore, label: jira)
 - [x] M1-02: Backend OAuth endpoints (start/callback) with token storage (encrypted) and scope validation (type: feature, label: backend-jira)
 - [x] M1-03: Frontend “Connect Jira” button → redirect → success state (type: feature, label: frontend-auth)
@@ -55,4 +55,4 @@ Status: unchecked = not started, [ ]/[/] can be updated as we work. Use these as
 ## How to track
 - Use this file as the source of truth and mirror each line as a GitHub issue (labels shown in parentheses). Add assignees/estimates when creating issues.
 - Keep status in GitHub; periodically sync back here (or delete this file once issues exist in your tracker).
-- Keep branches small: 1–2 items per PR; after merge, move the issue to “Done” and deploy to staging for milestones M1+.
+- Keep branches small: 1–2 items per PR; after merge, move the issue to “Done”. Deploy to staging only after the late-cycle staging milestone is reintroduced.
