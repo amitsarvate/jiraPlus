@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
-import { decryptString } from "./crypto";
+import { decryptString, encryptString } from "./crypto";
 import { JiraClient, JiraClientError } from "./jiraClient";
+import type { TokenResponse } from "../types/jira";
 
 type Logger = {
   info: (data: Record<string, unknown>, message: string) => void;
@@ -141,19 +142,7 @@ async function runJiraSyncCycle(logger: Logger): Promise<void> {
     });
 
     try {
-      const accessToken = decryptToken(connection.accessTokenEnc);
-      const agileClient = new JiraClient({
-        accessToken,
-        cloudId: connection.cloudId,
-        baseUrl: `https://api.atlassian.com/ex/jira/${connection.cloudId}/rest/agile/1.0`,
-        logger
-      });
-
-      await syncBoardsAndIssues({
-        connectionId: connection.id,
-        agileClient,
-        logger
-      });
+      await syncConnectionWithRefresh({ connection, logger });
 
       await prisma.jiraSyncJob.update({
         where: { id: job.id },
@@ -163,7 +152,8 @@ async function runJiraSyncCycle(logger: Logger): Promise<void> {
         }
       });
     } catch (err) {
-      const errorMessage = formatError(err);
+      const errorMessage =
+        err instanceof JiraUnauthorizedError ? err.message : formatError(err);
       logger.error(
         { err: serializeError(err), connectionId: connection.id },
         "Jira sync failed"
@@ -178,6 +168,70 @@ async function runJiraSyncCycle(logger: Logger): Promise<void> {
       });
     }
   }
+}
+
+async function syncConnectionWithRefresh(params: {
+  connection: {
+    id: string;
+    cloudId: string;
+    accessTokenEnc: string;
+    refreshTokenEnc: string | null;
+  };
+  logger: Logger;
+}): Promise<void> {
+  const accessToken = decryptToken(params.connection.accessTokenEnc);
+  try {
+    await runSyncForConnection({
+      connectionId: params.connection.id,
+      cloudId: params.connection.cloudId,
+      accessToken,
+      logger: params.logger
+    });
+  } catch (err) {
+    if (err instanceof JiraClientError && err.status === 401) {
+      const refreshed = await refreshAccessToken({
+        connectionId: params.connection.id,
+        refreshTokenEnc: params.connection.refreshTokenEnc,
+        logger: params.logger
+      });
+
+      if (!refreshed) {
+        throw new JiraUnauthorizedError(
+          "Unauthorized: Jira token invalid or expired. Reconnect required."
+        );
+      }
+
+      await runSyncForConnection({
+        connectionId: params.connection.id,
+        cloudId: params.connection.cloudId,
+        accessToken: refreshed,
+        logger: params.logger
+      });
+      return;
+    }
+
+    throw err;
+  }
+}
+
+async function runSyncForConnection(params: {
+  connectionId: string;
+  cloudId: string;
+  accessToken: string;
+  logger: Logger;
+}): Promise<void> {
+  const agileClient = new JiraClient({
+    accessToken: params.accessToken,
+    cloudId: params.cloudId,
+    baseUrl: `https://api.atlassian.com/ex/jira/${params.cloudId}/rest/agile/1.0`,
+    logger: params.logger
+  });
+
+  await syncBoardsAndIssues({
+    connectionId: params.connectionId,
+    agileClient,
+    logger: params.logger
+  });
 }
 
 async function syncBoardsAndIssues(params: {
@@ -420,6 +474,77 @@ function decryptToken(payload: string): string {
   return decryptString(parsed);
 }
 
+async function refreshAccessToken(params: {
+  connectionId: string;
+  refreshTokenEnc: string | null;
+  logger: Logger;
+}): Promise<string | null> {
+  if (!params.refreshTokenEnc) {
+    params.logger.warn(
+      { connectionId: params.connectionId },
+      "No refresh token available for Jira connection"
+    );
+    return null;
+  }
+
+  const clientId = process.env.JIRA_CLIENT_ID;
+  const clientSecret = process.env.JIRA_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    params.logger.warn(
+      { connectionId: params.connectionId },
+      "Missing Jira OAuth env vars; cannot refresh token"
+    );
+    return null;
+  }
+
+  const refreshToken = decryptToken(params.refreshTokenEnc);
+  const res = await fetch("https://auth.atlassian.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken
+    })
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    params.logger.warn(
+      { connectionId: params.connectionId, status: res.status, body: text },
+      "Failed to refresh Jira token"
+    );
+    return null;
+  }
+
+  const payload = (await res.json()) as TokenResponse;
+  const accessEnc = encryptString(payload.access_token);
+  const refreshEnc = payload.refresh_token
+    ? encryptString(payload.refresh_token)
+    : null;
+  const expiresAt = new Date(Date.now() + payload.expires_in * 1000);
+  const scopes = payload.scope ? payload.scope.split(" ") : undefined;
+
+  await prisma.jiraConnection.update({
+    where: { id: params.connectionId },
+    data: {
+      accessTokenEnc: JSON.stringify(accessEnc),
+      refreshTokenEnc: refreshEnc ? JSON.stringify(refreshEnc) : null,
+      expiresAt,
+      tokenType: payload.token_type,
+      scopes: scopes ?? undefined
+    }
+  });
+
+  params.logger.info(
+    { connectionId: params.connectionId },
+    "Refreshed Jira access token"
+  );
+
+  return payload.access_token;
+}
+
 function toJiraId(value: number | string): string {
   return String(value);
 }
@@ -440,6 +565,13 @@ function formatError(err: unknown): string {
     return err.message;
   }
   return "Unknown error";
+}
+
+class JiraUnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "JiraUnauthorizedError";
+  }
 }
 
 function serializeError(err: unknown): Record<string, unknown> {

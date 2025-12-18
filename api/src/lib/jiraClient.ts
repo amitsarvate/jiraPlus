@@ -133,6 +133,10 @@ export class JiraClient {
         cancel();
         lastError = err;
 
+        if (err instanceof JiraClientError) {
+          throw err;
+        }
+
         if (attempt < this.maxRetries) {
           const delayMs = jitterDelay(
             Math.min(this.maxDelayMs, this.minDelayMs * 2 ** attempt)
