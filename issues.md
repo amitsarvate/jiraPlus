@@ -14,7 +14,7 @@ Status: unchecked = not started, [ ]/[/] can be updated as we work. Use these as
 - [x] M1-01: Register Jira Cloud app and document client ID/secret/redirect (type: chore, label: jira)
 - [x] M1-02: Backend OAuth endpoints (start/callback) with token storage (encrypted) and scope validation (type: feature, label: backend-jira)
 - [x] M1-03: Frontend “Connect Jira” button → redirect → success state (type: feature, label: frontend-auth)
-- [ ] M1-04: Staging deploy setup (frontend + api + managed Postgres/Redis) and healthcheck (type: chore, label: infra-deploy) — deferred to later milestone
+- [ ] M1-04: Staging deploy setup (frontend + api + managed Postgres/Redis) and healthcheck (type: chore, label: infra-deploy) — deferred to later milestone to focus on core app development
 
 ## M2: Data ingestion (boards/sprints/issues)
 - [ ] M2-01: Jira client module with rate-limit/retry handling (type: feature, label: backend-jira)
@@ -50,7 +50,7 @@ Status: unchecked = not started, [ ]/[/] can be updated as we work. Use these as
 - [ ] M7-02: Security hardening: token encryption, rate limits, input validation, CORS locks (type: chore, label: security)
 - [ ] M7-03: Ops: backups, migration gates, error tracking (Sentry), metrics dashboards (type: chore, label: infra-ops)
 - [ ] M7-04: Production readiness checklist and promotion to prod (type: chore, label: release)
-- [ ] M7-05: Staging deploy setup (frontend + api + managed Postgres/Redis) and healthcheck (type: chore, label: infra-deploy) — deferred until late development
+- [ ] M7-05: Staging deploy setup (frontend + api + managed Postgres/Redis) and healthcheck (type: chore, label: infra-deploy) — deferred until late development (exec decision)
 
 ## How to track
 - Use this file as the source of truth and mirror each line as a GitHub issue (labels shown in parentheses). Add assignees/estimates when creating issues.
