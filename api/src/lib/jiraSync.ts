@@ -89,10 +89,12 @@ export function startJiraSyncScheduler(
     return { stop: () => undefined };
   }
 
+  const envInterval = Number(process.env.JIRA_SYNC_INTERVAL_MINUTES);
   const intervalMinutes =
     options.intervalMinutes ??
-    Number(process.env.JIRA_SYNC_INTERVAL_MINUTES) ||
-    DEFAULT_INTERVAL_MINUTES;
+    (Number.isFinite(envInterval) && envInterval > 0
+      ? envInterval
+      : DEFAULT_INTERVAL_MINUTES);
   const intervalMs = intervalMinutes * 60 * 1000;
   let inProgress = false;
 
