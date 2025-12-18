@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import path from "node:path";
 import fastify from "fastify";
 import jiraAuthRoutes from "./routes/jiraAuth";
+import { startJiraSyncScheduler } from "./lib/jiraSync";
 
 // Load env from repo root (when running from workspace or root) and fallback to api/.env
 const envPaths = [
@@ -28,6 +29,7 @@ app
   .listen({ port, host })
   .then(() => {
     app.log.info({ port, host }, "API server listening");
+    startJiraSyncScheduler(app.log);
   })
   .catch((err) => {
     app.log.error(err, "Failed to start API server");
