@@ -187,30 +187,46 @@ async function syncConnectionWithRefresh(params: {
       accessToken,
       logger: params.logger
     });
+    return;
   } catch (err) {
-    if (err instanceof JiraClientError && err.status === 401) {
-      const refreshed = await refreshAccessToken({
-        connectionId: params.connection.id,
-        refreshTokenEnc: params.connection.refreshTokenEnc,
-        logger: params.logger
-      });
+    if (!(err instanceof JiraClientError) || !isAuthError(err.status)) {
+      throw err;
+    }
+  }
 
-      if (!refreshed) {
-        throw new JiraUnauthorizedError(
-          "Unauthorized: Jira token invalid or expired. Reconnect required."
-        );
-      }
+  const refreshed = await refreshAccessToken({
+    connectionId: params.connection.id,
+    refreshTokenEnc: params.connection.refreshTokenEnc,
+    logger: params.logger
+  });
 
-      await runSyncForConnection({
-        connectionId: params.connection.id,
+  if (!refreshed) {
+    throw new JiraUnauthorizedError(
+      "Unauthorized: Jira token invalid or expired. Reconnect required."
+    );
+  }
+
+  try {
+    await runSyncForConnection({
+      connectionId: params.connection.id,
+      cloudId: params.connection.cloudId,
+      accessToken: refreshed,
+      logger: params.logger
+    });
+  } catch (refreshErr) {
+    if (refreshErr instanceof JiraClientError && isAuthError(refreshErr.status)) {
+      const diagnosis = await diagnoseJiraUnauthorized({
         cloudId: params.connection.cloudId,
         accessToken: refreshed,
         logger: params.logger
       });
-      return;
+      params.logger.warn(
+        { connectionId: params.connection.id, reason: diagnosis.reason },
+        diagnosis.message
+      );
+      throw new JiraUnauthorizedError(diagnosis.message);
     }
-
-    throw err;
+    throw refreshErr;
   }
 }
 
@@ -574,9 +590,57 @@ class JiraUnauthorizedError extends Error {
   }
 }
 
+export async function diagnoseJiraUnauthorized(params: {
+  cloudId: string;
+  accessToken: string;
+  logger: Logger;
+}): Promise<JiraUnauthorizedDiagnosis> {
+  const coreClient = new JiraClient({
+    accessToken: params.accessToken,
+    cloudId: params.cloudId,
+    baseUrl: `https://api.atlassian.com/ex/jira/${params.cloudId}/rest/api/3`,
+    logger: params.logger
+  });
+
+  try {
+    await coreClient.request("/myself");
+    return {
+      reason: "agile-permission",
+      message:
+        "Agile API unauthorized; Jira Software access or board permissions may be missing."
+    };
+  } catch (err) {
+    if (err instanceof JiraClientError) {
+      if (isAuthError(err.status)) {
+        return {
+          reason: "token-unauthorized",
+          message:
+            "Token unauthorized for core Jira API; reconnect Jira or verify app scopes."
+        };
+      }
+      return {
+        reason: "unknown",
+        message: `Core Jira API check failed (${err.status}).`
+      };
+    }
+    return {
+      reason: "unknown",
+      message: "Core Jira API check failed with an unexpected error."
+    };
+  }
+}
+
+function isAuthError(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
 function serializeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {
     return { name: err.name, message: err.message };
   }
   return { value: err };
 }
+type JiraUnauthorizedDiagnosis = {
+  reason: "agile-permission" | "token-unauthorized" | "unknown";
+  message: string;
+};
