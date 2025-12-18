@@ -9,7 +9,14 @@ async function startJiraConnect() {
 
 export default function Home() {
   return (
-    <section style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+    <section
+      style={{
+        padding: "2rem",
+        fontFamily: "sans-serif",
+        minHeight: "100vh",
+        position: "relative"
+      }}
+    >
       <p style={{ fontSize: "0.9rem", color: "#5f6c7b", marginBottom: "0.5rem" }}>
         JiraPlus
       </p>
@@ -21,7 +28,14 @@ export default function Home() {
         sync so you can track velocity, created vs. completed, spillover, and developer
         activity across sprints.
       </p>
-      <div style={{ marginTop: "1.5rem" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)"
+        }}
+      >
         <button
           type="button"
           onClick={startJiraConnect}
