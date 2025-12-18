@@ -229,6 +229,32 @@ async function syncBoardsAndIssues(params: {
   }
 }
 
+async function fetchAllBoards(
+  agileClient: JiraClient,
+  logger: Logger
+): Promise<JiraBoardSummary[]> {
+  const boards: JiraBoardSummary[] = [];
+  let startAt = 0;
+  let isLast = false;
+
+  while (!isLast) {
+    const response = await agileClient.request<JiraBoardResponse>(
+      `/board?startAt=${startAt}&maxResults=${BOARD_PAGE_SIZE}`
+    );
+
+    if (!response) {
+      logger.warn({}, "No Jira board response returned");
+      break;
+    }
+
+    boards.push(...response.values);
+    isLast = response.isLast;
+    startAt += response.maxResults;
+  }
+
+  return boards;
+}
+
 async function syncSprintsForBoard(params: {
   connectionId: string;
   boardId: string;
