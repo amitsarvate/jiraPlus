@@ -17,7 +17,7 @@ Status: unchecked = not started, [ ]/[/] can be updated as we work. Use these as
 - [ ] M1-04: Staging deploy setup (frontend + api + managed Postgres/Redis) and healthcheck (type: chore, label: infra-deploy) — deferred to later milestone to focus on core app development
 
 ## M2: Data ingestion (boards/sprints/issues)
-- [ ] M2-01: Jira client module with rate-limit/retry handling (type: feature, label: backend-jira)
+- [x] M2-01: Jira client module with rate-limit/retry handling (type: feature, label: backend-jira)
 - [ ] M2-02: Models/migrations for boards, sprints, issues, issue_history, assignees, jira_connections, sync_jobs (type: feature, label: backend-db)
 - [ ] M2-03: Sync worker scheduled job (5–10 min) to pull data and store snapshots/deltas (type: feature, label: backend-sync)
 - [ ] M2-04: Webhook receiver for issue updates (verify signature) (type: feature, label: backend-jira)
